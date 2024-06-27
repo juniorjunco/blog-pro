@@ -236,8 +236,6 @@ app.get('/screenshot/:url', async (req, res) => {
   res.setHeader('Content-Type', 'image/png');
   res.send(screenshot);
 });
-
-// Configuración de Nodemailer
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -249,6 +247,12 @@ const transporter = nodemailer.createTransport({
 app.post('/send-email', upload.array('images', 5), async (req, res) => {
   try {
     const { nome, email, telefone, claridadFormato, flowIdea, fechaEntrega } = req.body;
+
+    // Verificar que todos los campos están presentes
+    if (!nome || !email || !telefone || !claridadFormato || !flowIdea || !fechaEntrega) {
+      return res.status(400).send('Todos los campos son obligatorios');
+    }
+
     const attachments = req.files.map(file => ({
       filename: file.originalname,
       content: file.buffer
@@ -266,7 +270,9 @@ app.post('/send-email', upload.array('images', 5), async (req, res) => {
     res.status(200).send('Correo enviado exitosamente');
   } catch (error) {
     console.error('Error al enviar correo:', error);
-    res.status(500).send('Hubo un error al enviar el correo');
+
+    // Enviar detalles del error en la respuesta para facilitar la depuración
+    res.status(500).send(`Hubo un error al enviar el correo: ${error.message}`);
   }
 });
 
