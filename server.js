@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const nodemailer = require('nodemailer');
+const mailjet = require('node-mailjet').connect(process.env.MJ_APIKEY_PUBLIC, process.env.MJ_APIKEY_PRIVATE);
 require('dotenv').config();
 
 // Configurar Express
@@ -236,18 +236,7 @@ app.get('/screenshot/:url', async (req, res) => {
   res.setHeader('Content-Type', 'image/png');
   res.send(screenshot);
 });
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-console.log('Email User:', process.env.EMAIL_USER);
-console.log('Email Pass:', process.env.EMAIL_PASS);
-
-
+// Configurar Mailjet
 app.post('/send-email', upload.array('images', 5), async (req, res) => {
   try {
     const { nome, email, telefone, claridadFormato, flowIdea, fechaEntrega } = req.body;
@@ -262,15 +251,33 @@ app.post('/send-email', upload.array('images', 5), async (req, res) => {
       content: file.buffer
     }));
 
-    const mailOptions = {
-      from: email,
-      to: 'juniorjunco@gmail.com',
-      subject: 'Nuevo mensaje de Marion.ve contacto',
-      text: `Nombre: ${nome}\nEmail: ${email}\nTeléfono: ${telefone}\nClaridad del formato: ${claridadFormato}\nFlow de la idea: ${flowIdea}\nFecha de entrega: ${fechaEntrega}`,
-      attachments: attachments
-    };
+    const request = mailjet
+      .post("send", { 'version': 'v3.1' })
+      .request({
+        Messages: [
+          {
+            From: {
+              Email: email, // Usar el email del remitente
+              Name: nome   // Usar el nombre del remitente
+            },
+            To: [
+              {
+                Email: "juniorjunco@icloud.com", // El correo del destinatario (tu cliente)
+                Name: "Junior Junco" // Nombre del destinatario (tu cliente)
+              }
+            ],
+            Subject: "Nuevo mensaje del formulario de contacto",
+            TextPart: `Nombre: ${nome}\nEmail: ${email}\nTeléfono: ${telefone}\nClaridad del formato: ${claridadFormato}\nFlow de la idea: ${flowIdea}\nFecha de entrega: ${fechaEntrega}`,
+            Attachments: attachments.map(file => ({
+              ContentType: file.mimetype,
+              Filename: file.filename,
+              Base64Content: file.content.toString('base64')
+            }))
+          }
+        ]
+      });
 
-    await transporter.sendMail(mailOptions);
+    await request;
     res.status(200).send('Correo enviado exitosamente');
   } catch (error) {
     console.error('Error al enviar correo:', error);
@@ -279,7 +286,6 @@ app.post('/send-email', upload.array('images', 5), async (req, res) => {
     res.status(500).send(`Hubo un error al enviar el correo: ${error.message}`);
   }
 });
-
 
 // Iniciar servidor
 app.listen(PORT, () => {
