@@ -239,8 +239,8 @@ app.get('/screenshot/:url', async (req, res) => {
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // Usa una contraseña de aplicación para mayor seguridad
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
   },
 });
 
