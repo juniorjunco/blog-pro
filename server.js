@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const mailjet = require('node-mailjet').client(
+const nodemailjet = require('node-mailjet').client(
   process.env.MJ_APIKEY_PUBLIC,
   process.env.MJ_APIKEY_PRIVATE
 );
