@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const mailjet = require('node-mailjet').connect(process.env.MJ_APIKEY_PUBLIC, process.env.MJ_APIKEY_PRIVATE);
+const mailjet = require('node-mailjet'); 
 require('dotenv').config();
 
 // Configurar Express
@@ -237,6 +237,8 @@ app.get('/screenshot/:url', async (req, res) => {
   res.send(screenshot);
 });
 // Configurar Mailjet
+
+
 app.post('/send-email', upload.array('images', 5), async (req, res) => {
   try {
     const { nome, email, telefone, claridadFormato, flowIdea, fechaEntrega } = req.body;
@@ -250,6 +252,8 @@ app.post('/send-email', upload.array('images', 5), async (req, res) => {
       filename: file.originalname,
       content: file.buffer
     }));
+
+    const mailjetClient = mailjet.connect(process.env.MJ_APIKEY_PUBLIC, process.env.MJ_APIKEY_PRIVATE);
 
     const request = mailjet
       .post("send", { 'version': 'v3.1' })
