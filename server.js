@@ -244,6 +244,10 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+console.log('Email User:', process.env.EMAIL_USER);
+console.log('Email Pass:', process.env.EMAIL_PASS);
+
+
 app.post('/send-email', upload.array('images', 5), async (req, res) => {
   try {
     const { nome, email, telefone, claridadFormato, flowIdea, fechaEntrega } = req.body;
