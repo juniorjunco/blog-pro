@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const mailjet = require('node-mailjet').connect(apiKey, apiSecret); 
+const mailjet = require('node-mailjet');
 require('dotenv').config();
 
 // Configurar Express
@@ -236,30 +236,57 @@ app.get('/screenshot/:url', async (req, res) => {
   res.setHeader('Content-Type', 'image/png');
   res.send(screenshot);
 });
-// Configurar Mailjet
-const mailjetClient = mailjet.post("send", { 'version': 'v3.1' }).request({
-  Messages: [
-    {
-      From: {
-        Email: email,
-        Name: nome
-      },
-      To: [
-        {
-          Email: "juniorjunco@icloud.com",
-          Name: "Junior Junco"
-        }
-      ],
-      Subject: "Nuevo mensaje del formulario de contacto",
-      TextPart: `Nombre: ${nome}\nEmail: ${email}\nTeléfono: ${telefone}\nClaridad del formato: ${claridadFormato}\nFlow de la idea: ${flowIdea}\nFecha de entrega: ${fechaEntrega}`,
-      Attachments: attachments.map(file => ({
-        ContentType: file.mimetype,
-        Filename: file.filename,
-        Base64Content: file.content.toString('base64')
-      }))
+app.post('/send-email', upload.array('images', 5), async (req, res) => {
+  try {
+    const { nome, email, telefone, claridadFormato, flowIdea, fechaEntrega } = req.body;
+
+    // Verificar que todos los campos están presentes
+    if (!nome || !email || !telefone || !claridadFormato || !flowIdea || !fechaEntrega) {
+      return res.status(400).send('Todos los campos son obligatorios');
     }
-  ]
+
+    const attachments = req.files || [];
+
+    // Configurar Mailjet con las claves de API
+    const mailjetClient = mailjet.connect(process.env.MJ_APIKEY_PUBLIC, process.env.MJ_APIKEY_PRIVATE);
+
+    // Configurar el mensaje de correo electrónico
+    const request = mailjetClient.post("send", { 'version': 'v3.1' }).request({
+      Messages: [
+        {
+          From: {
+            Email: process.env.MAILJET_SENDER_EMAIL,
+            Name: process.env.MAILJET_SENDER_NAME
+          },
+          To: [
+            {
+              Email: process.env.MAILJET_RECEIVER_EMAIL,
+              Name: process.env.MAILJET_RECEIVER_NAME
+            }
+          ],
+          Subject: "Nuevo mensaje del formulario de contacto",
+          TextPart: `Nombre: ${nome}\nEmail: ${email}\nTeléfono: ${telefone}\nClaridad del formato: ${claridadFormato}\nFlow de la idea: ${flowIdea}\nFecha de entrega: ${fechaEntrega}`,
+          Attachments: attachments.map(file => ({
+            ContentType: file.mimetype,
+            Filename: file.originalname,
+            Base64Content: file.buffer.toString('base64')
+          }))
+        }
+      ]
+    });
+
+    // Ejecutar la solicitud de envío de correo electrónico
+    const result = await request;
+    console.log(result.body);
+
+    // Enviar respuesta al cliente
+    res.status(200).send('Correo electrónico enviado correctamente');
+  } catch (error) {
+    console.error('Error al enviar correo electrónico:', error);
+    res.status(500).send('Error al enviar correo electrónico');
+  }
 });
+
 
 // Iniciar servidor
 app.listen(PORT, () => {
