@@ -265,7 +265,7 @@ app.post('/send-email', upload.array('images', 5), async (req, res) => {
     const mailOptions = {
       from: email,
       to: 'juniorjunco@gmail.com',
-      subject: 'Nuevo mensaje del formulario de contacto',
+      subject: 'Nuevo mensaje de Marion.ve contacto',
       text: `Nombre: ${nome}\nEmail: ${email}\nTeléfono: ${telefone}\nClaridad del formato: ${claridadFormato}\nFlow de la idea: ${flowIdea}\nFecha de entrega: ${fechaEntrega}`,
       attachments: attachments
     };
