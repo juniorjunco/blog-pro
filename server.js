@@ -255,8 +255,8 @@ app.post('/send-email', upload.array('images', 5), async (req, res) => {
       Messages: [
         {
           From: {
-            Email: process.env.MAILJET_SENDER_EMAIL,
-            Name: process.env.MAILJET_SENDER_NAME
+            Email: req.body.email, // Usar el correo electrónico del remitente del formulario
+            Name: req.body.nome   // Usar el nombre del remitente del formulario
           },
           To: [
             {
