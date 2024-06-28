@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 const storage = multer.memoryStorage(); // Usar memoria en lugar de disco
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // Aumenta el límite según tus necesidades
+  limits: { fileSize: 10 * 5000 * 5000 } // Aumenta el límite según tus necesidades
 });
 
 // Middlewares
