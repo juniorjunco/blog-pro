@@ -14,6 +14,13 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Configurar CORS
+app.use(cors({
+  origin: 'https://marionve.netlify.app',
+  methods: ['GET', 'POST'],  // Agrega los métodos HTTP permitidos
+  allowedHeaders: ['Content-Type', 'Authorization']  // Agrega los encabezados permitidos
+}));
+
 // Configuración de Multer para manejar la subida de archivos
 const storage = multer.memoryStorage(); // Usar memoria en lugar de disco
 const upload = multer({
