@@ -25,12 +25,11 @@ app.use(cors({
 const storage = multer.memoryStorage(); // Usar memoria en lugar de disco
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 5000 * 5000 } // Aumenta el límite según tus necesidades
+  limits: { fileSize: 10 * 1024 * 1024 } // Aumenta el límite según tus necesidades (10MB en este caso)
 });
 
 // Middlewares
 app.use(bodyParser.json());
-app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Conectar a MongoDB
@@ -265,17 +264,18 @@ app.post('/send-email', authenticateToken, upload.array('images'), async (req, r
     }
 
     // Configurar Sendinblue
-    sgMail.setApiKey(process.env.SENDINBLUE_API_KEY);
+    const client = SibApiV3Sdk.ApiClient.instance;
+    client.authentications['api-key'].apiKey = process.env.SENDINBLUE_API_KEY;
 
     // Crear el mensaje de correo
     const msg = {
-      to: process.env.SENDINBLUE_RECEIVER_EMAIL, // Cambiar por tu correo destinatario en Sendinblue
-      from: {
+      to: [{ email: process.env.SENDINBLUE_RECEIVER_EMAIL }], // Cambiar por tu correo destinatario en Sendinblue
+      sender: {
         email: email,
         name: nome
       },
       subject: 'Nuevo formulario de contacto',
-      text: `
+      textContent: `
         Nombre: ${nome}
         Email: ${email}
         Teléfono: ${telefone}
@@ -283,17 +283,19 @@ app.post('/send-email', authenticateToken, upload.array('images'), async (req, r
         Flow de la idea: ${flowIdea}
         Fecha de entrega: ${fechaEntrega}
       `,
-      attachments
+      attachments: attachments
     };
 
     // Enviar el correo
-    await sgMail.send(msg);
+    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+    await apiInstance.sendTransacEmail(msg);
     res.status(200).send('Correo enviado correctamente');
   } catch (error) {
     console.error('Error al enviar el correo:', error);
     res.status(500).send('Hubo un error al enviar el correo.');
   }
 });
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
