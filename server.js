@@ -7,8 +7,10 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const SibApiV3Sdk = require('sib-api-v3-sdk');
+const sgMail = require('@sendgrid/mail');
 require('dotenv').config();
+
+
 
 // Configurar Express
 const app = express();
@@ -243,59 +245,46 @@ app.get('/screenshot/:url', async (req, res) => {
   res.send(screenshot);
 });
 
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-// Ruta para enviar el formulario por correo electrónico
-app.post('/send-email', authenticateToken, upload.array('images'), async (req, res) => {
+app.post('/send-email', upload.array('images'), async (req, res) => {
+  const { nome, email, telefone, claridadFormato, flowIdea, fechaEntrega } = req.body;
+
+  // Preparar los archivos adjuntos
+  const attachments = req.files.map(file => ({
+    content: file.buffer.toString('base64'),
+    filename: file.originalname,
+    type: file.mimetype,
+    disposition: 'attachment'
+  }));
+
+  const msg = {
+    to: process.env.SENDGRID_RECEIVER_EMAIL, // Tu correo receptor
+    from: email, // Correo del remitente
+    subject: `Nuevo formulario de contacto de ${nome}`,
+    text: `
+      Nombre: ${nome}
+      Email: ${email}
+      Teléfono: ${telefone}
+      Claridad del Formato: ${claridadFormato}
+      Idea: ${flowIdea}
+      Fecha de Entrega: ${fechaEntrega}
+    `,
+    attachments: attachments
+  };
+
   try {
-    const { nome, email, telefone, claridadFormato, flowIdea, fechaEntrega } = req.body;
-    const files = req.files;
-
-    // Preparar archivos adjuntos
-    const attachments = [];
-    if (files && files.length > 0) {
-      files.forEach(file => {
-        attachments.push({
-          content: file.buffer.toString('base64'),
-          filename: file.originalname,
-          type: file.mimetype,
-          disposition: 'attachment'
-        });
-      });
-    }
-
-    // Configurar Sendinblue
-    const client = SibApiV3Sdk.ApiClient.instance;
-    client.authentications['api-key'].apiKey = process.env.SENDINBLUE_API_KEY;
-
-    // Crear el mensaje de correo
-    const msg = {
-      to: [{ email: process.env.SENDINBLUE_RECEIVER_EMAIL }], // Cambiar por tu correo destinatario en Sendinblue
-      sender: {
-        email: email,
-        name: nome
-      },
-      subject: 'Nuevo formulario de contacto',
-      textContent: `
-        Nombre: ${nome}
-        Email: ${email}
-        Teléfono: ${telefone}
-        Claridad del formato: ${claridadFormato}
-        Flow de la idea: ${flowIdea}
-        Fecha de entrega: ${fechaEntrega}
-      `,
-      attachments: attachments
-    };
-
-    // Enviar el correo
-    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-    await apiInstance.sendTransacEmail(msg);
-    res.status(200).send('Correo enviado correctamente');
+    await sgMail.send(msg);
+    res.status(200).send('Correo enviado con éxito');
   } catch (error) {
     console.error('Error al enviar el correo:', error);
-    res.status(500).send('Hubo un error al enviar el correo.');
+    res.status(500).send('Error al enviar el correo');
   }
 });
 
+
+
+  
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
