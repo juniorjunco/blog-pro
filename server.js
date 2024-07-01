@@ -23,16 +23,18 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']  // Agrega los encabezados permitidos
 }));
 
+
 // Configuración de Multer para manejar la subida de archivos
-const storage = multer.memoryStorage(); // Usar memoria en lugar de disco
+const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 200 * 5000 * 5000 } // Aumenta el límite según tus necesidades (10MB en este caso)
+  limits: { fileSize: 1000 * 1024 * 1024 } // 1000MB (1GB)
 });
 
 // Middlewares
-app.use(bodyParser.json({ limit: '20mb' })); // Aumenta el límite de tamaño a 20MB
-app.use(bodyParser.urlencoded({ limit: '20mb', extended: true }));
+app.use(bodyParser.json({ limit: '1000mb' }));
+app.use(bodyParser.urlencoded({ limit: '1000mb', extended: true }));
+
 
 // Conectar a MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
