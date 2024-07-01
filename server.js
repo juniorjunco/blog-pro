@@ -262,7 +262,7 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
 
   const msg = {
     to: 'marionvectg1@gmail.com', // Tu correo receptor
-    from:  email,// Correo del remitente
+    from:  'juniorjunco@gmail.com',// Correo del remitente
     subject: `Nuevo formulario de contacto Marion ve ${nome}`,
     text: `
       Nombre: ${nome}
