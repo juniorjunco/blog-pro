@@ -27,7 +27,7 @@ app.use(cors({
 const storage = multer.memoryStorage(); // Usar memoria en lugar de disco
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 5000 * 5000 } // Aumenta el límite según tus necesidades (10MB en este caso)
+  limits: { fileSize: 200 * 5000 * 5000 } // Aumenta el límite según tus necesidades (10MB en este caso)
 });
 
 // Middlewares
