@@ -27,12 +27,12 @@ app.use(cors({
 const storage = multer.memoryStorage(); // Usar memoria en lugar de disco
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // Aumenta el límite según tus necesidades (10MB en este caso)
+  limits: { fileSize: 20 * 1024 * 1024 } // Aumenta el límite según tus necesidades (10MB en este caso)
 });
 
 // Middlewares
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '20mb' })); // Aumenta el límite de tamaño a 20MB
+app.use(bodyParser.urlencoded({ limit: '20mb', extended: true }));
 
 // Conectar a MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
