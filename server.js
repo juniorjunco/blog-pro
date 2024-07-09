@@ -17,12 +17,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Configurar CORS
-app.use(cors({
+const corsOptions = {
   origin: 'https://marionve.netlify.app',
-  methods: ['GET', 'POST'],  // Agrega los métodos HTTP permitidos
-  allowedHeaders: ['Content-Type', 'Authorization']  // Agrega los encabezados permitidos
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
 
+app.use(cors(corsOptions));
+
+// Asegurar el manejo de solicitudes preflight
+app.options('*', cors(corsOptions));
 
 // Configuración de Multer para manejar la subida de archivos
 const storage = multer.memoryStorage();
