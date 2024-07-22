@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 
 // Configurar CORS
 const corsOptions = {
-  origin: 'http://marionve.com',
+  origin: ['http://marionve.com', 'https://marionve.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 };
