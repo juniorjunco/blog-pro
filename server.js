@@ -290,66 +290,95 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
   }
 });
 
-
-const News = mongoose.model('News', newsSchema);
-// Ruta para crear una noticia con imagen
+// Ruta para crear una noticia
 app.post('/news', upload.single('image'), async (req, res) => {
   try {
-    const { title, date, description } = req.body;
-    if (!req.file) {
-      return res.status(400).json({ message: 'Imagen es requerida' });
-    }
-
-    const newNews = new News({
+    const { title, description } = req.body;
+    const imageBuffer = req.file.buffer; // Obtener el buffer de la imagen
+    const news = new News({
       title,
-      date,
       description,
       image: {
-        data: req.file.buffer,
+        data: imageBuffer,
         contentType: req.file.mimetype
       }
     });
-
-    await newNews.save();
-    res.status(201).json(newNews);
+    await news.save();
+    res.status(201).send('Noticia creada exitosamente');
   } catch (error) {
-    console.error('Error al crear noticia:', error);
-    res.status(500).json({ message: 'Error al crear noticia', error });
+    res.status(500).send(error.message);
   }
 });
 
-// Ruta para obtener la imagen de una noticia
-app.get('/news/image/:id', async (req, res) => {
-  try {
-    const news = await News.findById(req.params.id);
-    if (!news || !news.image || !news.image.data) {
-      return res.status(404).json({ message: 'Imagen no encontrada' });
-    }
-    res.set('Content-Type', news.image.contentType);
-    res.send(news.image.data);
-  } catch (error) {
-    console.error('Error al obtener la imagen:', error);
-    res.status(500).json({ message: 'Error al obtener la imagen', error });
-  }
-});
-
-// Ruta para obtener noticias con la URL de la imagen
+// Ruta para obtener todas las noticias
 app.get('/news', async (req, res) => {
   try {
     const news = await News.find();
-    const newsWithImageUrls = news.map(item => {
-      return {
-        _id: item._id,
-        title: item.title,
-        date: item.date,
-        description: item.description,
-        imageUrl: `https://blog-pro-gamma.vercel.app/news/image/${item._id}` // Añadir URL de la imagen
-      };
-    });
-    res.status(200).json(newsWithImageUrls);
+    res.json(news); // Enviar las noticias como respuesta JSON
   } catch (error) {
-    console.error('Error al obtener noticias:', error);
-    res.status(500).json({ message: 'Error al obtener noticias', error });
+    res.status(500).send(error.message);
+  }
+});
+
+// Ruta para obtener una noticia por ID
+app.get('/news/:id', async (req, res) => {
+  try {
+    const newsId = req.params.id;
+    const news = await News.findById(newsId);
+
+    if (!news) {
+      return res.status(404).send('Noticia no encontrada');
+    }
+
+    res.json(news);
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+// Ruta para eliminar una noticia por ID
+app.delete('/news/:id', async (req, res) => {
+  try {
+    const newsId = req.params.id;
+    const news = await News.findById(newsId);
+
+    if (!news) {
+      return res.status(404).send('Noticia no encontrada');
+    }
+
+    await News.findByIdAndDelete(newsId);
+    res.status(200).send('Noticia eliminada exitosamente');
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+// Ruta para editar una noticia por ID
+app.put('/news/:id', upload.single('image'), async (req, res) => {
+  try {
+    const newsId = req.params.id;
+    const { title, description } = req.body;
+    const news = await News.findById(newsId);
+
+    if (!news) {
+      return res.status(404).send('Noticia no encontrada');
+    }
+
+    news.title = title;
+    news.description = description;
+
+    if (req.file) {
+      const imageBuffer = req.file.buffer;
+      news.image = {
+        data: imageBuffer,
+        contentType: req.file.mimetype
+      };
+    }
+
+    await news.save();
+    res.status(200).send('Noticia actualizada exitosamente');
+  } catch (error) {
+    res.status(500).send(error.message);
   }
 });
 
@@ -357,3 +386,5 @@ app.get('/news', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+
