@@ -290,12 +290,7 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
   }
 });
 
-const newsSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  date: { type: String, required: true },
-  description: { type: String, required: true },
-  image: { data: Buffer, contentType: String } // Datos binarios de la imagen
-});
+
 const News = mongoose.model('News', newsSchema);
 // Ruta para crear una noticia con imagen
 app.post('/news', upload.single('image'), async (req, res) => {
