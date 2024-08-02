@@ -296,12 +296,11 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
   }
 });
 
-// Definir esquema de noticia
 const newsSchema = new mongoose.Schema({
   title: { type: String, required: true },
   date: { type: String, required: true },
   description: { type: String, required: true },
-  imageUrl: { type: String, required: true } // URL de la imagen
+  image: { data: Buffer, contentType: String } // Datos binarios de la imagen
 });
 const News = mongoose.model('News', newsSchema);
 
@@ -309,13 +308,21 @@ const News = mongoose.model('News', newsSchema);
 app.post('/news', upload.single('image'), async (req, res) => {
   try {
     const { title, date, description } = req.body;
-    const imageUrl = req.file ? req.file.path : null; // Guardar la ruta del archivo
 
-    if (!imageUrl) {
+    if (!req.file) {
       return res.status(400).json({ message: 'Imagen es requerida' });
     }
 
-    const newNews = new News({ title, date, description, imageUrl });
+    const newNews = new News({
+      title,
+      date,
+      description,
+      image: {
+        data: req.file.buffer,
+        contentType: req.file.mimetype
+      }
+    });
+
     await newNews.save();
     res.status(201).json(newNews);
   } catch (error) {
