@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer');
+const sharp = require('sharp');
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
@@ -290,11 +291,15 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
   }
 });
 
+
 // Ruta para crear una noticia
 app.post('/news', upload.single('image'), async (req, res) => {
   try {
     const { title, description } = req.body;
-    const imageBuffer = req.file.buffer; // Obtener el buffer de la imagen
+    const imageBuffer = await sharp(req.file.buffer)
+      .resize(800, 800, { fit: 'inside' })
+      .toBuffer();
+
     const news = new News({
       title,
       description,
@@ -310,73 +315,34 @@ app.post('/news', upload.single('image'), async (req, res) => {
   }
 });
 
-// Ruta para obtener todas las noticias
+// Ruta para obtener todas las noticias con paginación
 app.get('/news', async (req, res) => {
   try {
-    const news = await News.find();
-    res.json(news); // Enviar las noticias como respuesta JSON
+    const { page = 1, limit = 10 } = req.query; // Obtener página y límite de la consulta
+    const news = await News.find()
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .exec();
+    const count = await News.countDocuments();
+    res.json({
+      news,
+      totalPages: Math.ceil(count / limit),
+      currentPage: page
+    });
   } catch (error) {
     res.status(500).send(error.message);
   }
 });
 
-// Ruta para obtener una noticia por ID
-app.get('/news/:id', async (req, res) => {
+// Ruta para obtener la imagen de una noticia por ID
+app.get('/news/image/:id', async (req, res) => {
   try {
-    const newsId = req.params.id;
-    const news = await News.findById(newsId);
-
-    if (!news) {
-      return res.status(404).send('Noticia no encontrada');
+    const news = await News.findById(req.params.id);
+    if (!news || !news.image || !news.image.data) {
+      return res.status(404).send('Imagen no encontrada');
     }
-
-    res.json(news);
-  } catch (error) {
-    res.status(500).send(error.message);
-  }
-});
-
-// Ruta para eliminar una noticia por ID
-app.delete('/news/:id', async (req, res) => {
-  try {
-    const newsId = req.params.id;
-    const news = await News.findById(newsId);
-
-    if (!news) {
-      return res.status(404).send('Noticia no encontrada');
-    }
-
-    await News.findByIdAndDelete(newsId);
-    res.status(200).send('Noticia eliminada exitosamente');
-  } catch (error) {
-    res.status(500).send(error.message);
-  }
-});
-
-// Ruta para editar una noticia por ID
-app.put('/news/:id', upload.single('image'), async (req, res) => {
-  try {
-    const newsId = req.params.id;
-    const { title, description } = req.body;
-    const news = await News.findById(newsId);
-
-    if (!news) {
-      return res.status(404).send('Noticia no encontrada');
-    }
-
-    news.title = title;
-    news.description = description;
-
-    if (req.file) {
-      const imageBuffer = req.file.buffer;
-      news.image = {
-        data: imageBuffer,
-        contentType: req.file.mimetype
-      };
-    }
-
-    await news.save();
-    res.status(200).send('Noticia actualizada exitosamente');
+    res.set('Content-Type', news.image.contentType);
+    res.send(news.image.data);
   } catch (error) {
     res.status(500).send(error.message);
   }
