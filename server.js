@@ -5,7 +5,9 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const AWS = require('aws-sdk');
 const multer = require('multer');
+const multerS3 = require('multer-s3');
 const path = require('path');
 const sgMail = require('@sendgrid/mail');
 require('dotenv').config();
@@ -29,17 +31,26 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 
-// Configuración de Multer para manejar la subida de archivos
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Carpeta donde se guardan los archivos
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname)); // Nombre del archivo
-  }
+// Configurar AWS S3
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION
 });
+
+// Configurar Multer para usar S3
 const upload = multer({
-  storage,
+  storage: multerS3({
+    s3: s3,
+    bucket: process.env.S3_BUCKET_NAME,
+    acl: 'public-read',
+    metadata: (req, file, cb) => {
+      cb(null, { fieldName: file.fieldname });
+    },
+    key: (req, file, cb) => {
+      cb(null, Date.now().toString() + path.extname(file.originalname));
+    }
+  }),
   limits: { fileSize: 1000 * 1024 * 1024 } // 1000MB (1GB)
 });
 
@@ -309,7 +320,7 @@ const News = mongoose.model('News', newsSchema);
 app.post('/news', upload.single('image'), async (req, res) => {
   try {
     const { title, date, description } = req.body;
-    const imageUrl = req.file ? req.file.path : null; // Guardar la ruta del archivo
+    const imageUrl = req.file ? req.file.location : null; // URL del archivo en S3
 
     if (!imageUrl) {
       return res.status(400).json({ message: 'Imagen es requerida' });
@@ -319,6 +330,7 @@ app.post('/news', upload.single('image'), async (req, res) => {
     await newNews.save();
     res.status(201).json(newNews);
   } catch (error) {
+    console.error('Error al crear noticia:', error);
     res.status(500).json({ message: 'Error al crear noticia', error });
   }
 });
