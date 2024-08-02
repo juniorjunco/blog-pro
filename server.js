@@ -30,14 +30,7 @@ app.options('*', cors(corsOptions));
 
 
 // Configuración de Multer para manejar la subida de archivos
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Carpeta donde se guardan los archivos
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname)); // Nombre del archivo
-  }
-});
+const storage = multer.memoryStorage(); // Usar memoria para almacenar las imágenes temporalmente
 const upload = multer({
   storage,
   limits: { fileSize: 1000 * 1024 * 1024 } // 1000MB (1GB)
@@ -296,6 +289,7 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
   }
 });
 
+// Definir esquema de noticia
 const newsSchema = new mongoose.Schema({
   title: { type: String, required: true },
   date: { type: String, required: true },
