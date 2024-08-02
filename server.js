@@ -289,7 +289,6 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
   }
 });
 
-// Definir esquema de noticia
 const newsSchema = new mongoose.Schema({
   title: { type: String, required: true },
   date: { type: String, required: true },
@@ -297,6 +296,7 @@ const newsSchema = new mongoose.Schema({
   image: { data: Buffer, contentType: String } // Datos binarios de la imagen
 });
 const News = mongoose.model('News', newsSchema);
+
 
 // Ruta para crear una noticia con imagen
 app.post('/news', upload.single('image'), async (req, res) => {
@@ -320,20 +320,42 @@ app.post('/news', upload.single('image'), async (req, res) => {
     await newNews.save();
     res.status(201).json(newNews);
   } catch (error) {
+    console.error('Error al crear noticia:', error);
     res.status(500).json({ message: 'Error al crear noticia', error });
   }
 });
 
-// Ruta para obtener todas las noticias
+app.get('/news/image/:id', async (req, res) => {
+  try {
+    const news = await News.findById(req.params.id);
+    if (!news || !news.image || !news.image.data) {
+      return res.status(404).json({ message: 'Imagen no encontrada' });
+    }
+    res.set('Content-Type', news.image.contentType);
+    res.send(news.image.data);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener la imagen', error });
+  }
+});
+
 app.get('/news', async (req, res) => {
   try {
     const news = await News.find();
-    res.status(200).json(news);
+    const newsWithImageUrls = news.map(item => {
+      return {
+        _id: item._id,
+        title: item.title,
+        date: item.date,
+        description: item.description,
+        imageUrl: `/news/image/${item._id}` // Añadir URL de la imagen
+      };
+    });
+    res.status(200).json(newsWithImageUrls);
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener noticias', error });
   }
 });
-  
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
