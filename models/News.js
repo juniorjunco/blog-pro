@@ -14,8 +14,9 @@ const newsSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  imageUrl: {
-    type: String
+  image: {
+    data: Buffer,
+    contentType: String
   }
 });
 
