@@ -28,8 +28,16 @@ app.use(cors(corsOptions));
 // Asegurar el manejo de solicitudes preflight
 app.options('*', cors(corsOptions));
 
+
 // Configuración de Multer para manejar la subida de archivos
-const storage = multer.memoryStorage();
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // Carpeta donde se guardan los archivos
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname)); // Nombre del archivo
+  }
+});
 const upload = multer({
   storage,
   limits: { fileSize: 1000 * 1024 * 1024 } // 1000MB (1GB)
@@ -288,10 +296,25 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
   }
 });
 
+// Definir esquema de noticia
+const newsSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  date: { type: String, required: true },
+  description: { type: String, required: true },
+  imageUrl: { type: String, required: true } // URL de la imagen
+});
+const News = mongoose.model('News', newsSchema);
 
-app.post('/news', async (req, res) => {
+// Ruta para crear una noticia con imagen
+app.post('/news', upload.single('image'), async (req, res) => {
   try {
-    const { title, date, description, imageUrl } = req.body;
+    const { title, date, description } = req.body;
+    const imageUrl = req.file ? req.file.path : null; // Guardar la ruta del archivo
+
+    if (!imageUrl) {
+      return res.status(400).json({ message: 'Imagen es requerida' });
+    }
+
     const newNews = new News({ title, date, description, imageUrl });
     await newNews.save();
     res.status(201).json(newNews);
@@ -300,6 +323,7 @@ app.post('/news', async (req, res) => {
   }
 });
 
+// Ruta para obtener todas las noticias
 app.get('/news', async (req, res) => {
   try {
     const news = await News.find();
