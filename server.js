@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const News = require('./models/News');
 const sgMail = require('@sendgrid/mail');
 require('dotenv').config();
 
@@ -296,12 +297,7 @@ const newsSchema = new mongoose.Schema({
   image: { data: Buffer, contentType: String } // Datos binarios de la imagen
 });
 const News = mongoose.model('News', newsSchema);
-
-
 // Ruta para crear una noticia con imagen
-app.use(cors(corsOptions));
-
-// Rutas de la API
 app.post('/news', upload.single('image'), async (req, res) => {
   try {
     const { title, date, description } = req.body;
@@ -327,6 +323,7 @@ app.post('/news', upload.single('image'), async (req, res) => {
   }
 });
 
+// Ruta para obtener la imagen de una noticia
 app.get('/news/image/:id', async (req, res) => {
   try {
     const news = await News.findById(req.params.id);
@@ -336,10 +333,12 @@ app.get('/news/image/:id', async (req, res) => {
     res.set('Content-Type', news.image.contentType);
     res.send(news.image.data);
   } catch (error) {
+    console.error('Error al obtener la imagen:', error);
     res.status(500).json({ message: 'Error al obtener la imagen', error });
   }
 });
 
+// Ruta para obtener noticias con la URL de la imagen
 app.get('/news', async (req, res) => {
   try {
     const news = await News.find();
@@ -349,11 +348,12 @@ app.get('/news', async (req, res) => {
         title: item.title,
         date: item.date,
         description: item.description,
-        imageUrl: `/news/image/${item._id}` // Añadir URL de la imagen
+        imageUrl: `https://blog-pro-gamma.vercel.app/news/image/${item._id}` // Añadir URL de la imagen
       };
     });
     res.status(200).json(newsWithImageUrls);
   } catch (error) {
+    console.error('Error al obtener noticias:', error);
     res.status(500).json({ message: 'Error al obtener noticias', error });
   }
 });
