@@ -289,7 +289,25 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
 });
 
 
+app.post('/news', async (req, res) => {
+  try {
+    const { title, date, description, imageUrl } = req.body;
+    const newNews = new News({ title, date, description, imageUrl });
+    await newNews.save();
+    res.status(201).json(newNews);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al crear noticia', error });
+  }
+});
 
+app.get('/news', async (req, res) => {
+  try {
+    const news = await News.find();
+    res.status(200).json(news);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener noticias', error });
+  }
+});
   
 // Iniciar servidor
 app.listen(PORT, () => {
