@@ -299,10 +299,12 @@ const News = mongoose.model('News', newsSchema);
 
 
 // Ruta para crear una noticia con imagen
+app.use(cors(corsOptions));
+
+// Rutas de la API
 app.post('/news', upload.single('image'), async (req, res) => {
   try {
     const { title, date, description } = req.body;
-
     if (!req.file) {
       return res.status(400).json({ message: 'Imagen es requerida' });
     }
