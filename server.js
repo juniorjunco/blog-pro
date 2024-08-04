@@ -6,6 +6,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
+const router = express.Router();
 const path = require('path');
 const sgMail = require('@sendgrid/mail');
 require('dotenv').config();
@@ -35,14 +37,18 @@ const storage = multer.diskStorage({
     cb(null, 'uploads/'); // Cambia la ruta según sea necesario
   },
   filename: (req, file, cb) => {
-    cb(null, file.originalname);
+    cb(null, uuidv4() + '-' + file.originalname);
   }
-});
+})
+
+
 
 const upload = multer({
   storage,
   limits: { fileSize: 1000 * 1024 * 1024 } // 1000MB (1GB)
 });
+
+
 
 // Middlewares
 app.use(bodyParser.json({ limit: '1000mb' }));
@@ -297,7 +303,79 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
   }
 });
 
+const newsSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  image: { type: String },
+  createdAt: { type: Date, default: Date.now }
+});
+const News = mongoose.model('News', newsSchema);
 
+app.post('/news', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    const image = req.file ? `/uploads/${req.file.filename}` : null;
+
+    const news = new News({
+      title,
+      description,
+      image
+    });
+    await news.save();
+    res.status(201).send('Noticia creada exitosamente');
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+app.get('/news', async (req, res) => {
+  try {
+    const news = await News.find();
+    res.json(news);
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    const newsId = req.params.id;
+    const { title, description } = req.body;
+    const image = req.file ? `/uploads/${req.file.filename}` : null;
+
+    const news = await News.findById(newsId);
+
+    if (!news) {
+      return res.status(404).send('Noticia no encontrada');
+    }
+
+    news.title = title;
+    news.description = description;
+    if (image) {
+      news.image = image;
+    }
+    await news.save();
+    res.status(200).send('Noticia actualizada exitosamente');
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+app.delete('/news/:id', authenticateToken, async (req, res) => {
+  try {
+    const newsId = req.params.id;
+    const news = await News.findById(newsId);
+
+    if (!news) {
+      return res.status(404).send('Noticia no encontrada');
+    }
+
+    await News.findByIdAndDelete(newsId);
+    res.status(200).send('Noticia eliminada exitosamente');
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
 
 // Iniciar servidor
 app.listen(PORT, () => {
