@@ -1,5 +1,4 @@
 const puppeteer = require('puppeteer');
-const sharp = require('sharp');
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
@@ -8,7 +7,6 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const News = require('./models/News');
 const sgMail = require('@sendgrid/mail');
 require('dotenv').config();
 
@@ -32,7 +30,15 @@ app.options('*', cors(corsOptions));
 
 
 // Configuración de Multer para manejar la subida de archivos
-const storage = multer.memoryStorage(); // Usar memoria para almacenar las imágenes temporalmente
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // Cambia la ruta según sea necesario
+  },
+  filename: (req, file, cb) => {
+    cb(null, file.originalname);
+  }
+});
+
 const upload = multer({
   storage,
   limits: { fileSize: 1000 * 1024 * 1024 } // 1000MB (1GB)
@@ -292,22 +298,22 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
 });
 
 
-// Ruta para crear una noticia
-app.post('/news', upload.single('image'), async (req, res) => {
-  try {
-    const { title, description } = req.body;
-    const imageBuffer = await sharp(req.file.buffer)
-      .resize(800, 800, { fit: 'inside' })
-      .toBuffer();
+// Definir esquema de noticias
+const newsSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  date: { type: Date, required: true },
+  description: { type: String, required: true },
+  imageUrl: { type: String, required: true } // Cambiado de Buffer a String
+});
+const News = mongoose.model('News', newsSchema);
 
-    const news = new News({
-      title,
-      description,
-      image: {
-        data: imageBuffer,
-        contentType: req.file.mimetype
-      }
-    });
+// Ruta para crear una noticia
+app.post('/news', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    const { title, date, description } = req.body;
+    const imageUrl = req.file ? req.file.path : null;
+
+    const news = new News({ title, date, description, imageUrl });
     await news.save();
     res.status(201).send('Noticia creada exitosamente');
   } catch (error) {
@@ -315,38 +321,60 @@ app.post('/news', upload.single('image'), async (req, res) => {
   }
 });
 
-// Ruta para obtener todas las noticias con paginación
+// Ruta para obtener todas las noticias
 app.get('/news', async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query; // Obtener página y límite de la consulta
-    const news = await News.find()
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .exec();
-    const count = await News.countDocuments();
-    res.json({
-      news,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page
-    });
+    const news = await News.find();
+    res.json(news);
   } catch (error) {
     res.status(500).send(error.message);
   }
 });
 
-// Ruta para obtener la imagen de una noticia por ID
-app.get('/news/image/:id', async (req, res) => {
+// Ruta para eliminar una noticia
+app.delete('/news/:id', authenticateToken, async (req, res) => {
   try {
-    const news = await News.findById(req.params.id);
-    if (!news || !news.image || !news.image.data) {
-      return res.status(404).send('Imagen no encontrada');
+    const newsId = req.params.id;
+    const news = await News.findById(newsId);
+
+    if (!news) {
+      return res.status(404).send('Noticia no encontrada');
     }
-    res.set('Content-Type', news.image.contentType);
-    res.send(news.image.data);
+
+    await News.findByIdAndDelete(newsId);
+    res.status(200).send('Noticia eliminada exitosamente');
   } catch (error) {
     res.status(500).send(error.message);
   }
 });
+
+// Ruta para editar una noticia
+app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    const newsId = req.params.id;
+    const { title, date, description } = req.body;
+    const imageUrl = req.file ? req.file.path : null;
+
+    const news = await News.findById(newsId);
+
+    if (!news) {
+      return res.status(404).send('Noticia no encontrada');
+    }
+
+    news.title = title;
+    news.date = date;
+    news.description = description;
+    if (imageUrl) {
+      news.imageUrl = imageUrl;
+    }
+
+    await news.save();
+    res.status(200).send('Noticia actualizada exitosamente');
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
 
 // Iniciar servidor
 app.listen(PORT, () => {
