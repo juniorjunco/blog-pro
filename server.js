@@ -354,7 +354,7 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
   } catch (error) {
     res.status(500).send(error.message);
   }
-});
+}); 
 
 // Ruta para obtener todas las noticias
 app.get('/news', async (req, res) => {
