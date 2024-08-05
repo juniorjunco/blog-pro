@@ -313,6 +313,13 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+const newsSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  image: { type: String }
+});
+const News = mongoose.model('News', newsSchema);
+
 
 // Ruta para crear una noticia
 app.post('/news', authenticateToken, upload.single('image'), async (req, res) => {
