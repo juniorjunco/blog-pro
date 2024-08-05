@@ -309,7 +309,6 @@ const newsSchema = new mongoose.Schema({
 });
 const News = mongoose.model('News', newsSchema);
 
-// Ruta para crear una noticia
 app.post('/news', authenticateToken, upload.single('image'), async (req, res) => {
   console.log('Request file:', req.file);
   console.log('Request body:', req.body);
@@ -319,6 +318,7 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
     let imageUrl = null;
 
     if (req.file) {
+      // Create a readable stream from the file buffer
       const uploadStream = cloudinary.uploader.upload_stream(
         { resource_type: 'auto' },
         (error, result) => {
@@ -337,6 +337,11 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
 
       // Pipe buffer stream to Cloudinary
       bufferStream.pipe(uploadStream);
+    }
+
+    // Wait for the image upload to complete
+    if (req.file) {
+      await new Promise(resolve => uploadStream.on('finish', resolve));
     }
 
     const news = new News({
