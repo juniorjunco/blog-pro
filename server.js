@@ -39,18 +39,13 @@ const upload = multer({
   limits: { fileSize: 1000 * 1024 * 1024 } // 1000MB (1GB)
 });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 1000 * 1024 * 1024 } // 1000MB (1GB)
-});
-
 
 
 
 // Middlewares
 app.use(bodyParser.json({ limit: '1000mb' }));
 app.use(bodyParser.urlencoded({ limit: '1000mb', extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 
 
