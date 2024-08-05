@@ -8,8 +8,10 @@ const cors = require('cors');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
+const fs = require('fs');
 const path = require('path');
 const sgMail = require('@sendgrid/mail');
+const cloudinary = require('cloudinary').v2;
 require('dotenv').config();
 
 
@@ -53,6 +55,8 @@ const upload = multer({
 // Middlewares
 app.use(bodyParser.json({ limit: '1000mb' }));
 app.use(bodyParser.urlencoded({ limit: '1000mb', extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 
 // Conectar a MongoDB
@@ -303,24 +307,32 @@ app.post('/send-email', upload.array('images'), async (req, res) => {
   }
 });
 
-const newsSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  image: { type: String },
-  createdAt: { type: Date, default: Date.now }
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
-const News = mongoose.model('News', newsSchema);
+
 
 // Ruta para crear una noticia
 app.post('/news', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     const { title, description } = req.body;
-    const image = req.file ? `/uploads/${req.file.filename}` : null;
+    let imageUrl = null;
+
+    if (req.file) {
+      // Subir imagen a Cloudinary
+      const result = await cloudinary.uploader.upload(req.file.path);
+      imageUrl = result.secure_url; // Obtén la URL segura de la imagen subida
+
+      // Eliminar el archivo local después de subir
+      fs.unlinkSync(req.file.path);
+    }
 
     const news = new News({
       title,
       description,
-      image
+      image: imageUrl
     });
     await news.save();
     res.status(201).send('Noticia creada exitosamente');
@@ -329,20 +341,21 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
   }
 });
 
-app.get('/news', async (req, res) => {
-  try {
-    const news = await News.find();
-    res.json(news);
-  } catch (error) {
-    res.status(500).send(error.message);
-  }
-});
-
+// Ruta para actualizar una noticia
 app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     const newsId = req.params.id;
     const { title, description } = req.body;
-    const image = req.file ? `/uploads/${req.file.filename}` : null;
+    let imageUrl = null;
+
+    if (req.file) {
+      // Subir imagen a Cloudinary
+      const result = await cloudinary.uploader.upload(req.file.path);
+      imageUrl = result.secure_url; // Obtén la URL segura de la imagen subida
+
+      // Eliminar el archivo local después de subir
+      fs.unlinkSync(req.file.path);
+    }
 
     const news = await News.findById(newsId);
 
@@ -352,8 +365,8 @@ app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res)
 
     news.title = title;
     news.description = description;
-    if (image) {
-      news.image = image;
+    if (imageUrl) {
+      news.image = imageUrl;
     }
     await news.save();
     res.status(200).send('Noticia actualizada exitosamente');
