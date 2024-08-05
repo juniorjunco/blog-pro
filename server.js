@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
+const { Readable } = require('stream');
 const fs = require('fs');
 const path = require('path');
 const sgMail = require('@sendgrid/mail');
@@ -310,7 +311,6 @@ const News = mongoose.model('News', newsSchema);
 
 // Ruta para crear una noticia
 app.post('/news', authenticateToken, upload.single('image'), async (req, res) => {
-  // Agregar logs para inspeccionar los datos recibidos
   console.log('Request file:', req.file);
   console.log('Request body:', req.body);
 
@@ -319,19 +319,24 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
     let imageUrl = null;
 
     if (req.file) {
-      // Subir imagen a Cloudinary usando buffer
-      const result = await cloudinary.uploader.upload_stream(
-        { resource_type: 'auto' }, // auto detecta el tipo de archivo
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { resource_type: 'auto' },
         (error, result) => {
           if (error) {
             console.error('Cloudinary upload error:', error);
-            throw new Error('Error uploading image to Cloudinary');
+            return res.status(500).send('Error uploading image to Cloudinary');
           }
           imageUrl = result.secure_url;
         }
       );
 
-      req.file.buffer.pipe(result); // Subir el archivo usando el buffer
+      // Convert buffer to stream
+      const bufferStream = new Readable();
+      bufferStream.push(req.file.buffer);
+      bufferStream.push(null); // End of stream
+
+      // Pipe buffer stream to Cloudinary
+      bufferStream.pipe(uploadStream);
     }
 
     const news = new News({
