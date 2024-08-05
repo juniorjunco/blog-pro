@@ -308,49 +308,44 @@ const newsSchema = new mongoose.Schema({
 });
 const News = mongoose.model('News', newsSchema);
 
+// Ruta para crear una noticia
 app.post('/news', authenticateToken, upload.single('image'), async (req, res) => {
-  try {
-    console.log('Request file:', req.file); // Verifica el archivo recibido
-    console.log('Request body:', req.body); // Verifica los datos del formulario
+  // Agregar logs para inspeccionar los datos recibidos
+  console.log('Request file:', req.file);
+  console.log('Request body:', req.body);
 
+  try {
     const { title, description } = req.body;
     let imageUrl = null;
 
     if (req.file) {
-      // Subir imagen a Cloudinary
-      const result = await cloudinary.uploader.upload_stream((error, result) => {
-        if (error) {
-          console.error('Cloudinary upload error:', error);
-          return res.status(500).send('Error al subir la imagen');
+      // Subir imagen a Cloudinary usando buffer
+      const result = await cloudinary.uploader.upload_stream(
+        { resource_type: 'auto' }, // auto detecta el tipo de archivo
+        (error, result) => {
+          if (error) {
+            console.error('Cloudinary upload error:', error);
+            throw new Error('Error uploading image to Cloudinary');
+          }
+          imageUrl = result.secure_url;
         }
-        imageUrl = result.secure_url; // Obtén la URL segura de la imagen subida
+      );
 
-        // Guardar noticia en la base de datos después de obtener la URL
-        const news = new News({
-          title,
-          description,
-          image: imageUrl
-        });
-        news.save()
-          .then(() => res.status(201).send('Noticia creada exitosamente'))
-          .catch(error => res.status(500).send(error.message));
-      });
-
-      req.file.stream.pipe(cloudinary.uploader.upload_stream());
-    } else {
-      // Si no se sube una imagen, guarda solo el título y la descripción
-      const news = new News({
-        title,
-        description,
-        image: imageUrl
-      });
-      await news.save();
-      res.status(201).send('Noticia creada exitosamente');
+      req.file.buffer.pipe(result); // Subir el archivo usando el buffer
     }
+
+    const news = new News({
+      title,
+      description,
+      image: imageUrl
+    });
+    await news.save();
+    res.status(201).send('Noticia creada exitosamente');
   } catch (error) {
     res.status(500).send(error.message);
   }
 });
+
 
 
 
