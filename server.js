@@ -310,20 +310,26 @@ const newsSchema = new mongoose.Schema({
 });
 const News = mongoose.model('News', newsSchema);
 
-
-// Ruta para crear una noticia
 app.post('/news', authenticateToken, upload.single('image'), async (req, res) => {
   try {
+    console.log('Request file:', req.file); // Verifica el archivo recibido
+    console.log('Request body:', req.body); // Verifica los datos del formulario
+
     const { title, description } = req.body;
     let imageUrl = null;
 
     if (req.file) {
-      // Subir imagen a Cloudinary
-      const result = await cloudinary.uploader.upload(req.file.path);
-      imageUrl = result.secure_url; // Obtén la URL segura de la imagen subida
-
-      // Eliminar el archivo local después de subir
-      fs.unlinkSync(req.file.path);
+      // Subir imagen a Cloudinary usando buffer
+      const result = await cloudinary.uploader.upload_stream(
+        { resource_type: 'image' },
+        (error, result) => {
+          if (error) {
+            throw new Error(error.message);
+          }
+          imageUrl = result.secure_url;
+        }
+      );
+      req.file.stream.pipe(result);
     }
 
     const news = new News({
@@ -338,20 +344,28 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
   }
 });
 
-// Ruta para actualizar una noticia
+
 app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
   try {
+    console.log('Request file:', req.file); // Verifica el archivo recibido
+    console.log('Request body:', req.body); // Verifica los datos del formulario
+
     const newsId = req.params.id;
     const { title, description } = req.body;
     let imageUrl = null;
 
     if (req.file) {
-      // Subir imagen a Cloudinary
-      const result = await cloudinary.uploader.upload(req.file.path);
-      imageUrl = result.secure_url; // Obtén la URL segura de la imagen subida
-
-      // Eliminar el archivo local después de subir
-      fs.unlinkSync(req.file.path);
+      // Subir imagen a Cloudinary usando buffer
+      const result = await cloudinary.uploader.upload_stream(
+        { resource_type: 'image' },
+        (error, result) => {
+          if (error) {
+            throw new Error(error.message);
+          }
+          imageUrl = result.secure_url;
+        }
+      );
+      req.file.stream.pipe(result);
     }
 
     const news = await News.findById(newsId);
@@ -371,6 +385,7 @@ app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res)
     res.status(500).send(error.message);
   }
 });
+
 
 app.delete('/news/:id', authenticateToken, async (req, res) => {
   try {
