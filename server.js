@@ -310,6 +310,9 @@ const News = mongoose.model('News', newsSchema);
 
 app.post('/news', authenticateToken, upload.single('image'), async (req, res) => {
   try {
+    console.log('Request file:', req.file); // Verifica el archivo recibido
+    console.log('Request body:', req.body); // Verifica los datos del formulario
+
     const { title, description } = req.body;
     let imageUrl = null;
 
