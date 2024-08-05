@@ -351,6 +351,15 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
   }
 });
 
+// Ruta para obtener todas las noticias
+app.get('/news', async (req, res) => {
+  try {
+    const news = await News.find(); // Obtiene todas las noticias de la base de datos
+    res.json(news); // Envía las noticias en formato JSON
+  } catch (error) {
+    res.status(500).send('Error retrieving news');
+  }
+});
 
 
 
