@@ -319,24 +319,26 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
     let imageUrl = null;
 
     if (req.file) {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        { resource_type: 'auto' },
-        (error, result) => {
-          if (error) {
-            console.error('Cloudinary upload error:', error);
-            return res.status(500).send('Error uploading image to Cloudinary');
-          }
-          imageUrl = result.secure_url;
-        }
-      );
-
       // Convert buffer to stream
       const bufferStream = new Readable();
       bufferStream.push(req.file.buffer);
       bufferStream.push(null); // End of stream
 
-      // Pipe buffer stream to Cloudinary
-      bufferStream.pipe(uploadStream);
+      // Use a promise to handle async upload
+      imageUrl = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { resource_type: 'auto' },
+          (error, result) => {
+            if (error) {
+              console.error('Cloudinary upload error:', error);
+              reject('Error uploading image to Cloudinary');
+            }
+            resolve(result.secure_url);
+          }
+        );
+        
+        bufferStream.pipe(uploadStream);
+      });
     }
 
     const news = new News({
@@ -348,16 +350,6 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
     res.status(201).send('Noticia creada exitosamente');
   } catch (error) {
     res.status(500).send(error.message);
-  }
-});
-
-// Ruta para obtener todas las noticias
-app.get('/news', async (req, res) => {
-  try {
-    const news = await News.find(); // Obtiene todas las noticias de la base de datos
-    res.json(news); // Envía las noticias en formato JSON
-  } catch (error) {
-    res.status(500).send('Error retrieving news');
   }
 });
 
