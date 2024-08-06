@@ -432,6 +432,71 @@ app.get('/news', async (req, res) => {
   }
 });
 
+// Ruta para editar una noticia
+app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    console.log('Request file:', req.file);
+    console.log('Request body:', req.body);
+
+    const newsId = req.params.id;
+    const { title, description } = req.body;
+    let imageUrl = null;
+
+    if (req.file) {
+      const bufferStream = new Readable();
+      bufferStream.push(req.file.buffer);
+      bufferStream.push(null);
+
+      imageUrl = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { resource_type: 'auto' },
+          (error, result) => {
+            if (error) {
+              console.error('Cloudinary upload error:', error);
+              reject('Error uploading image to Cloudinary');
+            }
+            resolve(result.secure_url);
+          }
+        );
+        
+        bufferStream.pipe(uploadStream);
+      });
+    }
+
+    const news = await News.findById(newsId);
+
+    if (!news) {
+      return res.status(404).send({ success: false, message: 'Noticia no encontrada' });
+    }
+
+    news.title = title;
+    news.description = description;
+    if (imageUrl) {
+      news.image = imageUrl;
+    }
+    await news.save();
+    res.status(200).send({ success: true, message: 'Noticia actualizada exitosamente' });
+  } catch (error) {
+    res.status(500).send({ success: false, message: error.message });
+  }
+});
+
+// Ruta para eliminar una noticia
+app.delete('/news/:id', authenticateToken, async (req, res) => {
+  try {
+    const newsId = req.params.id;
+    const news = await News.findById(newsId);
+
+    if (!news) {
+      return res.status(404).send({ success: false, message: 'Noticia no encontrada' });
+    }
+
+    await News.findByIdAndDelete(newsId);
+    res.status(200).send({ success: true, message: 'Noticia eliminada exitosamente' });
+  } catch (error) {
+    res.status(500).send({ success: false, message: error.message });
+  }
+});
 
 // Iniciar servidor
 app.listen(PORT, () => {
