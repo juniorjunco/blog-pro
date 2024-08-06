@@ -359,7 +359,7 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
   }
 });
 
-// Ruta para crear una noticia en inglés
+// Ruta para crear o actualizar una noticia en inglés
 app.post('/news-en', authenticateToken, upload.single('image'), async (req, res) => {
   console.log('Request file:', req.file);
   console.log('Request body:', req.body);
@@ -391,18 +391,34 @@ app.post('/news-en', authenticateToken, upload.single('image'), async (req, res)
       });
     }
 
-    const news = new News({
-      title,
-      description,
-      image: imageUrl,
-      language: 'en'
-    });
-    await news.save();
+    // Buscar si ya existe una noticia en inglés con el mismo título
+    let news = await News.findOne({ title, language: 'en' });
+
+    if (news) {
+      // Actualizar la noticia existente
+      news.title = title;
+      news.description = description;
+      if (imageUrl) {
+        news.image = imageUrl;
+      }
+      await news.save();
+    } else {
+      // Crear una nueva noticia en inglés
+      news = new News({
+        title,
+        description,
+        image: imageUrl,
+        language: 'en'
+      });
+      await news.save();
+    }
+
     res.status(201).json({ success: true, news });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 
 
