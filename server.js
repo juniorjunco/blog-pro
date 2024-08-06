@@ -490,16 +490,20 @@ app.delete('/news/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Ruta para obtener todas las noticias
+// Ruta para obtener todas las noticias filtradas por idioma
 app.get('/news', async (req, res) => {
   try {
-    const news = await News.find(); // Obtiene todas las noticias de la base de datos
+    const { language } = req.query; // Obtiene el parámetro de consulta 'language'
+    const filter = language ? { language } : {}; // Filtra por idioma si se proporciona
+
+    const news = await News.find(filter); // Obtiene las noticias filtradas
     res.json(news); // Envía las noticias en formato JSON
   } catch (error) {
     console.error('Error retrieving news:', error);
     res.status(500).send('Error retrieving news');
   }
 });
+
 
 // Ruta para editar una noticia
 app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
