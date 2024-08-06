@@ -303,10 +303,16 @@ cloudinary.config({
 });
 
 const newsSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  image: { type: String }
+  title: String,
+  description: String,
+  image: String,
+  language: {
+    type: String,
+    enum: ['es', 'en'],
+    default: 'es'
+  }
 });
+
 const News = mongoose.model('News', newsSchema);
 
 // Ruta para crear una noticia
@@ -352,6 +358,53 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// Ruta para crear una noticia en inglés
+app.post('/news-en', authenticateToken, upload.single('image'), async (req, res) => {
+  console.log('Request file:', req.file);
+  console.log('Request body:', req.body);
+
+  try {
+    const { title, description } = req.body;
+    let imageUrl = null;
+
+    if (req.file) {
+      // Convert buffer to stream
+      const bufferStream = new Readable();
+      bufferStream.push(req.file.buffer);
+      bufferStream.push(null); // End of stream
+
+      // Use a promise to handle async upload
+      imageUrl = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { resource_type: 'auto' },
+          (error, result) => {
+            if (error) {
+              console.error('Cloudinary upload error:', error);
+              reject('Error uploading image to Cloudinary');
+            }
+            resolve(result.secure_url);
+          }
+        );
+        
+        bufferStream.pipe(uploadStream);
+      });
+    }
+
+    const news = new News({
+      title,
+      description,
+      image: imageUrl,
+      language: 'en'
+    });
+    await news.save();
+    res.status(201).json({ success: true, news });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
 
 // Ruta para actualizar una noticia
 app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
