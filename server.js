@@ -493,16 +493,14 @@ app.delete('/news/:id', authenticateToken, async (req, res) => {
 // Ruta para obtener todas las noticias filtradas por idioma
 app.get('/news', async (req, res) => {
   try {
-    const { language } = req.query; // Obtiene el parámetro de consulta 'language'
-    const filter = language ? { language } : {}; // Filtra por idioma si se proporciona
-
-    const news = await News.find(filter); // Obtiene las noticias filtradas
-    res.json(news); // Envía las noticias en formato JSON
+    const language = req.query.language || 'es'; // Default to Spanish if no language is provided
+    const news = await News.find({ language });
+    res.json(news);
   } catch (error) {
-    console.error('Error retrieving news:', error);
-    res.status(500).send('Error retrieving news');
+    res.status(500).json({ error: error.message });
   }
 });
+
 
 
 // Ruta para editar una noticia
