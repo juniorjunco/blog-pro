@@ -347,9 +347,77 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
       image: imageUrl
     });
     await news.save();
-    res.status(201).send('Noticia creada exitosamente');
+    res.status(201).json({ success: true, news });
   } catch (error) {
-    res.status(500).send(error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Ruta para actualizar una noticia
+app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    console.log('Request file:', req.file); // Verifica el archivo recibido
+    console.log('Request body:', req.body); // Verifica los datos del formulario
+
+    const newsId = req.params.id;
+    const { title, description } = req.body;
+    let imageUrl = null;
+
+    if (req.file) {
+      // Convert buffer to stream
+      const bufferStream = new Readable();
+      bufferStream.push(req.file.buffer);
+      bufferStream.push(null); // End of stream
+
+      // Use a promise to handle async upload
+      imageUrl = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { resource_type: 'auto' },
+          (error, result) => {
+            if (error) {
+              console.error('Cloudinary upload error:', error);
+              reject('Error uploading image to Cloudinary');
+            }
+            resolve(result.secure_url);
+          }
+        );
+        
+        bufferStream.pipe(uploadStream);
+      });
+    }
+
+    const news = await News.findById(newsId);
+
+    if (!news) {
+      return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
+    }
+
+    news.title = title;
+    news.description = description;
+    if (imageUrl) {
+      news.image = imageUrl;
+    }
+    await news.save();
+    res.status(200).json({ success: true, news });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Ruta para eliminar una noticia
+app.delete('/news/:id', authenticateToken, async (req, res) => {
+  try {
+    const newsId = req.params.id;
+    const news = await News.findById(newsId);
+
+    if (!news) {
+      return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
+    }
+
+    await News.findByIdAndDelete(newsId);
+    res.status(200).json({ success: true, news });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -364,65 +432,6 @@ app.get('/news', async (req, res) => {
   }
 });
 
-
-
-app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
-  try {
-    console.log('Request file:', req.file); // Verifica el archivo recibido
-    console.log('Request body:', req.body); // Verifica los datos del formulario
-
-    const newsId = req.params.id;
-    const { title, description } = req.body;
-    let imageUrl = null;
-
-    if (req.file) {
-      // Subir imagen a Cloudinary usando buffer
-      const result = await cloudinary.uploader.upload_stream(
-        { resource_type: 'image' },
-        (error, result) => {
-          if (error) {
-            throw new Error(error.message);
-          }
-          imageUrl = result.secure_url;
-        }
-      );
-      req.file.stream.pipe(result);
-    }
-
-    const news = await News.findById(newsId);
-
-    if (!news) {
-      return res.status(404).send('Noticia no encontrada');
-    }
-
-    news.title = title;
-    news.description = description;
-    if (imageUrl) {
-      news.image = imageUrl;
-    }
-    await news.save();
-    res.status(200).send('Noticia actualizada exitosamente');
-  } catch (error) {
-    res.status(500).send(error.message);
-  }
-});
-
-
-app.delete('/news/:id', authenticateToken, async (req, res) => {
-  try {
-    const newsId = req.params.id;
-    const news = await News.findById(newsId);
-
-    if (!news) {
-      return res.status(404).send('Noticia no encontrada');
-    }
-
-    await News.findByIdAndDelete(newsId);
-    res.status(200).send('Noticia eliminada exitosamente');
-  } catch (error) {
-    res.status(500).send(error.message);
-  }
-});
 
 // Iniciar servidor
 app.listen(PORT, () => {
