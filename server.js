@@ -459,6 +459,7 @@ app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res)
 });
 
 
+
 // Ruta para eliminar una noticia
 app.delete('/news/:id', authenticateToken, async (req, res) => {
   try {
