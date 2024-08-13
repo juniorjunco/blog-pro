@@ -313,13 +313,11 @@ const newsSchema = new mongoose.Schema({
   }
 });
 
-const News = mongoose.model('News', newsSchema);
+const NewsES = mongoose.model('NewsES', newsSchema);
+const NewsEN = mongoose.model('NewsEN', newsSchema);
 
-// Ruta para crear una noticia
-app.post('/news', authenticateToken, upload.single('image'), async (req, res) => {
-  console.log('Request file:', req.file);
-  console.log('Request body:', req.body);
-
+// Rutas para noticias en español
+app.post('/news-es', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     const { title, description } = req.body;
     let imageUrl = null;
@@ -327,16 +325,13 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
     if (req.file) {
       const bufferStream = new Readable();
       bufferStream.push(req.file.buffer);
-      bufferStream.push(null); // End of stream
+      bufferStream.push(null);
 
       imageUrl = await new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           { resource_type: 'auto' },
           (error, result) => {
-            if (error) {
-              console.error('Cloudinary upload error:', error);
-              reject('Error uploading image to Cloudinary');
-            }
+            if (error) reject('Error uploading image to Cloudinary');
             resolve(result.secure_url);
           }
         );
@@ -344,11 +339,13 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
       });
     }
 
-    const news = new News({
+    const news = new NewsES({
       title,
       description,
-      image: imageUrl
+      image: imageUrl,
+      language: 'es'
     });
+
     await news.save();
     res.status(201).json({ success: true, news });
   } catch (error) {
@@ -356,66 +353,8 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
   }
 });
 
-// Ruta para crear o actualizar una noticia en inglés
-app.post('/news-en', authenticateToken, upload.single('image'), async (req, res) => {
-  console.log('Request file:', req.file);
-  console.log('Request body:', req.body);
-
+app.put('/news-es/:id', authenticateToken, upload.single('image'), async (req, res) => {
   try {
-    const { title, description } = req.body;
-    let imageUrl = null;
-
-    if (req.file) {
-      const bufferStream = new Readable();
-      bufferStream.push(req.file.buffer);
-      bufferStream.push(null); // End of stream
-
-      imageUrl = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { resource_type: 'auto' },
-          (error, result) => {
-            if (error) {
-              console.error('Cloudinary upload error:', error);
-              reject('Error uploading image to Cloudinary');
-            }
-            resolve(result.secure_url);
-          }
-        );
-        bufferStream.pipe(uploadStream);
-      });
-    }
-
-    let news = await News.findOne({ title, language: 'en' });
-
-    if (news) {
-      news.title = title;
-      news.description = description;
-      if (imageUrl) {
-        news.image = imageUrl;
-      }
-      await news.save();
-    } else {
-      news = new News({
-        title,
-        description,
-        image: imageUrl,
-        language: 'en'
-      });
-      await news.save();
-    }
-
-    res.status(201).json({ success: true, news });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Ruta para actualizar una noticia
-app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
-  try {
-    console.log('Request file:', req.file);
-    console.log('Request body:', req.body);
-
     const newsId = req.params.id;
     const { title, description } = req.body;
     let imageUrl = null;
@@ -423,16 +362,13 @@ app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res)
     if (req.file) {
       const bufferStream = new Readable();
       bufferStream.push(req.file.buffer);
-      bufferStream.push(null); // End of stream
+      bufferStream.push(null);
 
       imageUrl = await new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           { resource_type: 'auto' },
           (error, result) => {
-            if (error) {
-              console.error('Cloudinary upload error:', error);
-              reject('Error uploading image to Cloudinary');
-            }
+            if (error) reject('Error uploading image to Cloudinary');
             resolve(result.secure_url);
           }
         );
@@ -440,7 +376,7 @@ app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res)
       });
     }
 
-    const news = await News.findById(newsId);
+    const news = await NewsES.findById(newsId);
 
     if (!news) {
       return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
@@ -448,9 +384,8 @@ app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res)
 
     news.title = title;
     news.description = description;
-    if (imageUrl) {
-      news.image = imageUrl;
-    }
+    if (imageUrl) news.image = imageUrl;
+
     await news.save();
     res.status(200).json({ success: true, news });
   } catch (error) {
@@ -458,35 +393,133 @@ app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res)
   }
 });
 
-
-
-// Ruta para eliminar una noticia
-app.delete('/news/:id', authenticateToken, async (req, res) => {
+app.delete('/news-es/:id', authenticateToken, async (req, res) => {
   try {
     const newsId = req.params.id;
-    const news = await News.findById(newsId);
+    const news = await NewsES.findById(newsId);
 
     if (!news) {
       return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
     }
 
-    await News.findByIdAndDelete(newsId);
+    await NewsES.findByIdAndDelete(newsId);
     res.status(200).json({ success: true, message: 'Noticia eliminada exitosamente' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// Ruta para obtener todas las noticias filtradas por idioma
-app.get('/news', async (req, res) => {
+app.get('/news-es', async (req, res) => {
   try {
-    const language = req.query.language || 'es'; // Default to Spanish if no language is provided
-    const news = await News.find({ language });
+    const news = await NewsES.find({ language: 'es' });
     res.json(news);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Rutas para noticias en inglés
+app.post('/news-en', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    let imageUrl = null;
+
+    if (req.file) {
+      const bufferStream = new Readable();
+      bufferStream.push(req.file.buffer);
+      bufferStream.push(null);
+
+      imageUrl = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { resource_type: 'auto' },
+          (error, result) => {
+            if (error) reject('Error uploading image to Cloudinary');
+            resolve(result.secure_url);
+          }
+        );
+        bufferStream.pipe(uploadStream);
+      });
+    }
+
+    const news = new NewsEN({
+      title,
+      description,
+      image: imageUrl,
+      language: 'en'
+    });
+
+    await news.save();
+    res.status(201).json({ success: true, news });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.put('/news-en/:id', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    const newsId = req.params.id;
+    const { title, description } = req.body;
+    let imageUrl = null;
+
+    if (req.file) {
+      const bufferStream = new Readable();
+      bufferStream.push(req.file.buffer);
+      bufferStream.push(null);
+
+      imageUrl = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { resource_type: 'auto' },
+          (error, result) => {
+            if (error) reject('Error uploading image to Cloudinary');
+            resolve(result.secure_url);
+          }
+        );
+        bufferStream.pipe(uploadStream);
+      });
+    }
+
+    const news = await NewsEN.findById(newsId);
+
+    if (!news) {
+      return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
+    }
+
+    news.title = title;
+    news.description = description;
+    if (imageUrl) news.image = imageUrl;
+
+    await news.save();
+    res.status(200).json({ success: true, news });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/news-en/:id', authenticateToken, async (req, res) => {
+  try {
+    const newsId = req.params.id;
+    const news = await NewsEN.findById(newsId);
+
+    if (!news) {
+      return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
+    }
+
+    await NewsEN.findByIdAndDelete(newsId);
+    res.status(200).json({ success: true, message: 'Noticia eliminada exitosamente' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get('/news-en', async (req, res) => {
+  try {
+    const news = await NewsEN.find({ language: 'en' });
+    res.json(news);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // Iniciar servidor
 app.listen(PORT, () => {
