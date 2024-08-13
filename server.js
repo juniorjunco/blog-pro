@@ -302,27 +302,21 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Esquema para noticias en español
-const spanishNewsSchema = new mongoose.Schema({
+const newsSchema = new mongoose.Schema({
   title: String,
   description: String,
-  image: String
+  image: String,
+  language: {
+    type: String,
+    enum: ['es', 'en'],
+    default: 'es'
+  }
 });
 
-const SpanishNews = mongoose.model('SpanishNews', spanishNewsSchema);
+const News = mongoose.model('News', newsSchema);
 
-// Esquema para noticias en inglés
-const englishNewsSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  image: String
-});
-
-const EnglishNews = mongoose.model('EnglishNews', englishNewsSchema);
-
-
-// Ruta para crear una noticia en español
-app.post('/news-es', authenticateToken, upload.single('image'), async (req, res) => {
+// Ruta para crear una noticia
+app.post('/news', authenticateToken, upload.single('image'), async (req, res) => {
   console.log('Request file:', req.file);
   console.log('Request body:', req.body);
 
@@ -350,7 +344,7 @@ app.post('/news-es', authenticateToken, upload.single('image'), async (req, res)
       });
     }
 
-    const news = new SpanishNews({
+    const news = new News({
       title,
       description,
       image: imageUrl
@@ -361,82 +355,6 @@ app.post('/news-es', authenticateToken, upload.single('image'), async (req, res)
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
-// Ruta para actualizar una noticia en español
-app.put('/news-es/:id', authenticateToken, upload.single('image'), async (req, res) => {
-  try {
-    console.log('Request file:', req.file);
-    console.log('Request body:', req.body);
-
-    const newsId = req.params.id;
-    const { title, description } = req.body;
-    let imageUrl = null;
-
-    if (req.file) {
-      const bufferStream = new Readable();
-      bufferStream.push(req.file.buffer);
-      bufferStream.push(null); // End of stream
-
-      imageUrl = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { resource_type: 'auto' },
-          (error, result) => {
-            if (error) {
-              console.error('Cloudinary upload error:', error);
-              reject('Error uploading image to Cloudinary');
-            }
-            resolve(result.secure_url);
-          }
-        );
-        bufferStream.pipe(uploadStream);
-      });
-    }
-
-    const news = await SpanishNews.findById(newsId);
-
-    if (!news) {
-      return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
-    }
-
-    news.title = title;
-    news.description = description;
-    if (imageUrl) {
-      news.image = imageUrl;
-    }
-    await news.save();
-    res.status(200).json({ success: true, news });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Ruta para eliminar una noticia en español
-app.delete('/news-es/:id', authenticateToken, async (req, res) => {
-  try {
-    const newsId = req.params.id;
-    const news = await SpanishNews.findById(newsId);
-
-    if (!news) {
-      return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
-    }
-
-    await SpanishNews.findByIdAndDelete(newsId);
-    res.status(200).json({ success: true, message: 'Noticia eliminada exitosamente' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Ruta para obtener todas las noticias en español
-app.get('/news-es', async (req, res) => {
-  try {
-    const news = await SpanishNews.find();
-    res.json(news);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 
 // Ruta para crear o actualizar una noticia en inglés
 app.post('/news-en', authenticateToken, upload.single('image'), async (req, res) => {
@@ -467,7 +385,7 @@ app.post('/news-en', authenticateToken, upload.single('image'), async (req, res)
       });
     }
 
-    let news = await EnglishNews.findOne({ title });
+    let news = await News.findOne({ title, language: 'en' });
 
     if (news) {
       news.title = title;
@@ -477,10 +395,11 @@ app.post('/news-en', authenticateToken, upload.single('image'), async (req, res)
       }
       await news.save();
     } else {
-      news = new EnglishNews({
+      news = new News({
         title,
         description,
-        image: imageUrl
+        image: imageUrl,
+        language: 'en'
       });
       await news.save();
     }
@@ -491,8 +410,8 @@ app.post('/news-en', authenticateToken, upload.single('image'), async (req, res)
   }
 });
 
-// Ruta para actualizar una noticia en inglés
-app.put('/news-en/:id', authenticateToken, upload.single('image'), async (req, res) => {
+// Ruta para actualizar una noticia
+app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     console.log('Request file:', req.file);
     console.log('Request body:', req.body);
@@ -521,7 +440,7 @@ app.put('/news-en/:id', authenticateToken, upload.single('image'), async (req, r
       });
     }
 
-    const news = await EnglishNews.findById(newsId);
+    const news = await News.findById(newsId);
 
     if (!news) {
       return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
@@ -539,33 +458,35 @@ app.put('/news-en/:id', authenticateToken, upload.single('image'), async (req, r
   }
 });
 
-// Ruta para eliminar una noticia en inglés
-app.delete('/news-en/:id', authenticateToken, async (req, res) => {
+
+
+// Ruta para eliminar una noticia
+app.delete('/news/:id', authenticateToken, async (req, res) => {
   try {
     const newsId = req.params.id;
-    const news = await EnglishNews.findById(newsId);
+    const news = await News.findById(newsId);
 
     if (!news) {
       return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
     }
 
-    await EnglishNews.findByIdAndDelete(newsId);
+    await News.findByIdAndDelete(newsId);
     res.status(200).json({ success: true, message: 'Noticia eliminada exitosamente' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// Ruta para obtener todas las noticias en inglés
-app.get('/news-en', async (req, res) => {
+// Ruta para obtener todas las noticias filtradas por idioma
+app.get('/news', async (req, res) => {
   try {
-    const news = await EnglishNews.find();
+    const language = req.query.language || 'es'; // Default to Spanish if no language is provided
+    const news = await News.find({ language });
     res.json(news);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 // Iniciar servidor
 app.listen(PORT, () => {
