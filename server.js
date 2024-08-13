@@ -321,7 +321,7 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
   console.log('Request body:', req.body);
 
   try {
-    const { title, description, language = 'es' } = req.body;
+    const { title, description } = req.body;
     let imageUrl = null;
 
     if (req.file) {
@@ -347,8 +347,7 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
     const news = new News({
       title,
       description,
-      image: imageUrl,
-      language
+      image: imageUrl
     });
     await news.save();
     res.status(201).json({ success: true, news });
@@ -357,14 +356,68 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
   }
 });
 
-// Ruta para editar una noticia
+// Ruta para crear o actualizar una noticia en inglés
+app.post('/news-en', authenticateToken, upload.single('image'), async (req, res) => {
+  console.log('Request file:', req.file);
+  console.log('Request body:', req.body);
+
+  try {
+    const { title, description } = req.body;
+    let imageUrl = null;
+
+    if (req.file) {
+      const bufferStream = new Readable();
+      bufferStream.push(req.file.buffer);
+      bufferStream.push(null); // End of stream
+
+      imageUrl = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { resource_type: 'auto' },
+          (error, result) => {
+            if (error) {
+              console.error('Cloudinary upload error:', error);
+              reject('Error uploading image to Cloudinary');
+            }
+            resolve(result.secure_url);
+          }
+        );
+        bufferStream.pipe(uploadStream);
+      });
+    }
+
+    let news = await News.findOne({ title, language: 'en' });
+
+    if (news) {
+      news.title = title;
+      news.description = description;
+      if (imageUrl) {
+        news.image = imageUrl;
+      }
+      await news.save();
+    } else {
+      news = new News({
+        title,
+        description,
+        image: imageUrl,
+        language: 'en'
+      });
+      await news.save();
+    }
+
+    res.status(201).json({ success: true, news });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Ruta para actualizar una noticia
 app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     console.log('Request file:', req.file);
     console.log('Request body:', req.body);
 
     const newsId = req.params.id;
-    const { title, description, language } = req.body;
+    const { title, description } = req.body;
     let imageUrl = null;
 
     if (req.file) {
@@ -399,14 +452,13 @@ app.put('/news/:id', authenticateToken, upload.single('image'), async (req, res)
       news.image = imageUrl;
     }
     await news.save();
-
-    // Devuelve las noticias actualizadas después de la edición
-    const updatedNews = await News.find({ language });
-    res.status(200).json({ success: true, news: updatedNews });
+    res.status(200).json({ success: true, news });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+
 
 // Ruta para eliminar una noticia
 app.delete('/news/:id', authenticateToken, async (req, res) => {
@@ -419,10 +471,7 @@ app.delete('/news/:id', authenticateToken, async (req, res) => {
     }
 
     await News.findByIdAndDelete(newsId);
-
-    // Devuelve las noticias actualizadas después de la eliminación
-    const updatedNews = await News.find({ language: news.language });
-    res.status(200).json({ success: true, news: updatedNews });
+    res.status(200).json({ success: true, message: 'Noticia eliminada exitosamente' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -438,27 +487,6 @@ app.get('/news', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
-// Ruta para cancelar la edición de una noticia
-app.get('/news/cancel/:id', authenticateToken, async (req, res) => {
-  try {
-    const newsId = req.params.id;
-    const news = await News.findById(newsId);
-
-    if (!news) {
-      return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
-    }
-
-    // Devuelve las noticias sin cambios
-    const allNews = await News.find({ language: news.language });
-    res.status(200).json({ success: true, news: allNews });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-
-
 
 // Iniciar servidor
 app.listen(PORT, () => {
