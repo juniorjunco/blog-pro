@@ -306,6 +306,7 @@ const newsSchema = new mongoose.Schema({
   title: String,
   description: String,
   image: String,
+  date: { type: Date, default: Date.now }, // Campo de fecha agregado
 });
 
 const News = mongoose.model('News', newsSchema);
@@ -342,7 +343,8 @@ app.post('/news', authenticateToken, upload.single('image'), async (req, res) =>
     const news = new News({
       title,
       description,
-      image: imageUrl
+      image: imageUrl,
+      date: new Date() // Asignar la fecha actual al crear la noticia
     });
     await news.save();
     res.status(201).json({ success: true, news });
