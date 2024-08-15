@@ -431,6 +431,12 @@ app.get('/news', async (req, res) => {
 
 // Apartado noticias en english 
 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
 const englishNewsSchema = new mongoose.Schema({
   title: {
     type: String,
