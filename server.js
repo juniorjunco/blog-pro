@@ -2,7 +2,6 @@ const puppeteer = require('puppeteer');
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const englishNewsRoutes = require('./englishNewsRoutes');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
@@ -19,9 +18,6 @@ require('dotenv').config();
 // Configurar Express
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-app.use(bodyParser.json());
-app.use('/news-en', englishNewsRoutes); // Noticias en inglés
 
 // Configurar CORS
 const corsOptions = {
@@ -431,6 +427,7 @@ app.get('/news', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 
 
